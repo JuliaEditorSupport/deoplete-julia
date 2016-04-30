@@ -1,20 +1,46 @@
-
+import os
 ##########  Config
 julia_cmd = "julia-master"
-core_path = "~/build/julia-master/base/coreimg.jl"
-base_path = "~/build/julia-master/base/sysimg.jl"
+core_path = os.path.expanduser("~/build/julia-master/base/coreimg.jl")
+base_path = os.path.expanduser("~/build/julia-master/base/sysimg.jl")
 
+cache_folder = os.path.abspath(".") #This is where we cache the system libraries, cos they huge to  parse
 hard_coded_loadpaths =["../samples"]
-############main program
+
+###########################################################################################################
+###########################################################################################################
+import pyparsing as pp
+#pp.ParserElement.enablePackrat()
+import syntax
+import warnings
+from warnings import warn
+import functools
+import json
+
+###############Exceptions
+class ModuleNotFoundError(UserWarning):
+    def __init__(self, module_name, loadpaths):
+        self.module_name=module_name
+        self.loadpaths=loadpaths
+    def __str__(self):
+        return "Failed to find: " + self.module_name + " in " + ", ".join(self.loadpaths)
+
+
+class IncludeNotFoundError(UserWarning):
+    def __init__(self, path,inner):
+        self.path = path
+        self.inner = inner
+    def __str__(self):
+        return "Failed to find include: " + self.path
+
+
 
 ############## UTIL
+
 def flatten(list_of_lists):
     return [item for sublist in list_of_lists for item in sublist]
+
 ############ Path related things
-
-import os
-import pyparsing as pp
-
 
 def default_loadpaths():
     import subprocess
@@ -26,124 +52,80 @@ def default_loadpaths():
     return hard_coded_loadpaths + julia_loadpaths
 
 
-loadpaths = default_loadpaths()
-"""
-_working_dirs = [] #Managed by Context()
+_loadpaths = default_loadpaths()
+def loadpaths():
+    for path in _loadpaths:
+        yield normalise_path(path)
+
+
+_working_dirs = ["."] #Managed by Context()
 
 def current_working_dir():
     global _working_dirs
     return _working_dirs[-1]
 
+def normalise_path(path):
+    if not os.path.isabs(path):
+         path = os.path.abspath(os.path.join(current_working_dir(), path))
+    return path
+
+
 class Context():
     def __init__(self, working_dir):
-        self.working_dir = working_dir
-    def __enter__(self)
+       self.working_dir = normalise_path(working_dir)
+    def __enter__(self):
         global _working_dirs
-        _working_dirs.push(self.working_dir)
-    def __exit__(self,type,value,traceback)
+        _working_dirs.append(self.working_dir)
+    def __exit__(self,type,value,traceback):
         global _working_dirs
         _working_dirs.pop()
 
-"""
 
-########## Finding Identifiers
-
-RESERVED_WORDS = [ "abstract", "baremodule", "begin", "bitstype", "break", "catch", "ccall", "const", "continue", "do", "else", "elseif", "end", "export", "finally", "for", "function", "global", "if", "immutable", "import", "importall", "in", "let", "local", "macro", "module", "quote", "return", "try", "type", "typealias", "using", "while"]
-pp_reserved_word = pp.Or([pp.Literal(ww) for ww in RESERVED_WORDS])
-pp_identifier = (pp.NotAny(pp_reserved_word)
-                + pp.Word(pp.alphanums + "@" + "!"+"_"))
-
-TRANSPERENT_PREFIXES = ["@inline", "const"]
-pp_transperent_prefix = pp.Optional(pp.Or(
-    [pp.Literal(ww) for ww in TRANSPERENT_PREFIXES])).suppress()
-
-
-def _matched_only(matched):
-    return[match for matchgrp in matched
-                   for match in matchgrp[0]]
-
-
-def get_exports(raw_text):
-    pp_exports =  (pp.Literal("export").suppress()
-                   + pp.delimitedList(pp_identifier)
-                  )
-
-    parsed_exports = pp_exports.scanString(raw_text)
-    return _matched_only(parsed_exports)
-
-
-def get_vars(top_scoped_text):
-    #HACK: Because scoped blocks in well written code are indented, we are currently using this whitespace sensitivity at start of line to not match stuff in blocks
-    #NOmatch ' a'
-    #NOmatch:  `b` in `a,b=2,3`
-    #NOmatch `b` in `a=2;b=2`
-    #NOmatch `(a,b)`
-    pp_vars = ( pp.LineStart()
-                + pp_identifier
-               )
-    parsed_vars = pp_vars.scanString(top_scoped_text)
-    return _matched_only(parsed_vars)
-
-
-def get_macros(top_scoped_text):
-    pp_macros = (pp.LineStart()
-                 + pp.Literal("macro").suppress()
-                 + pp_identifier)
-    parsed_macros = pp_macros.scanString(top_scoped_text)
-    macros = _matched_only(parsed_macros)
-    return ["@"+macro for macro in macros]
-
-
-def get_functions_and_types(top_scoped_text):
-    pp_functions = (pp.LineStart()
-                 + (pp.Literal("function")
-                        | pp.Literal("type")
-                        | pp.Literal("immutable")
-                        | pp.Literal("abstract")
-                        | pp.Literal("typealias")).suppress()
-                 + pp_identifier)
-    parsed_functions = pp_functions.scanString(top_scoped_text)
-    functions = _matched_only(parsed_functions)
-    return functions
-
-
-def get_nonexports(raw_text):
-     #TODO scope first here
-    top_scoped_text = raw_text
-    return (get_vars(top_scoped_text)
-            + get_macros(top_scoped_text)
-            + get_functions_and_types(top_scoped_text))
 
 ########### Preprocessing (and includes)
 
+@functools.lru_cache(256)
 def load_include(path):
-    with open(path,"r") as fp:
-        return fp.read()
-
+    path = normalise_path(path)
+    try:
+        with open(path,"r") as fp:
+            return fp.read()
+    except FileNotFoundError as ee:
+        warn(IncludeNotFoundError(path,ee))
+        return "" #Failed to find include assume it is empty
 
 def flatten_includes(text):
     past_includes =set()
-    while(True): #Got to allow for for recursive includes
-        changed=False
-        def subsitute_include(string,loc, tokens):
-            path=tokens[0][0][1:-1]
-            if path in past_includes:
-                return "" #Avoid including something already included, (no infinite loops)
-            else:
-                past_includes.add(path)
-                changed=True;
-                return load_include(path)
+    def inner_flatten(text):
+        while(True): #Got to allow for for recursive includes
+            changed=False
+            def subsitute_include(string,loc, tokens):
+                path=tokens[0][0][1:-1]
+                if path in past_includes:
+                    warn("Denied attempt to re-include "+path )
+                    return "" #Avoid including something already included, (no infinite loops)
+                else:
+                    past_includes.add(path)
+                    changed=True;
+                    print("* expanding", path)
+                    directory, file = os.path.split(path)
+                    with Context(directory):
+                        include_text = load_include(file)
+                        return inner_flatten(include_text)
 
-        pp_include = (pp.Literal("include").suppress()
-                       + pp.nestedExpr(
-                            content=pp.QuotedString('"')
-                        ).addParseAction(subsitute_include)
 
-                   )
-        text = pp_include.transformString(text )
+            pp_include = (pp.LineStart()
+                        + pp.Literal("include").suppress()
+                        + pp.nestedExpr(
+                                content=pp.QuotedString('"')
+                            ).addParseAction(subsitute_include)
 
-        if not(changed):
-             return text
+                    )
+            text = pp_include.transformString(text)
+
+            if not(changed):
+                return text
+    return inner_flatten(text)
 
 
 def preprocess(raw_text):
@@ -156,29 +138,25 @@ def preprocess(raw_text):
 #See also https://github.com/JuliaLang/julia/blob/d6df2a0b166d360b24f4cc3631a65e3cc5c56476/base/loading.jl
 
 
-class ModuleNotFoundError(Exception):
-    def __init__(self, module_name, loadpaths):
-        self.module_name=module_name
-        self.loadpaths=loadpaths
-    def __str__(self):
-        return "Failed to find: " + self.module_name + " in " + ", ".join(self.loadpaths)
 
 
-
+@functools.lru_cache(256)
 def load_module(module_name):
     import os.path
 
-    for lpath in loadpaths:
-        fn = os.path.join(lpath,module_name+".jl")
-        try:
+    for lpath in loadpaths():
+        with Context(lpath):
+            fn = os.path.join(lpath,module_name+".jl")
+            try:
 
-            with  open(fn,'r') as fp:
-                raw_text = fp.read()
-            return preprocess(raw_text)
-        except FileNotFoundError:
-            pass #No problem try the next
+                with  open(fn,'r') as fp:
+                    raw_text = fp.read()
+                return preprocess(raw_text)
+            except FileNotFoundError:
+                pass #No problem try the next
 
-    raise ModuleNotFoundError(module_name, loadpaths)
+    warn(ModuleNotFoundError(module_name, loadpaths))
+    return "" #Failed to find module, assume it is emot
 
 
 ########## Using/Import/Importall
@@ -196,50 +174,81 @@ importall MyModule            |  All exported names (x and y)
 using Module = importall Module + import Module
 """
 def importall_module(module_name):
-    raw_text = load_module(module_name)
-    return get_exports(raw_text)
+    text = load_module(module_name)
+    return syntax.get_exports(text)
 
 def import_module(module_name):
-    raw_text = load_module(module_name)
-    return [module_name+"."+id for id in get_nonexports(raw_text)]
+    text = load_module(module_name)
+    return [module_name+"."+id for id in syntax.get_nonexports(text)]
 
 def using_module(module_name):
     return importall_module(module_name)+import_module(module_name)
 
 
 def using_system_pseudomodules(imgpath, module_name):
-    pass
-#    with open(imgpath,"r"):
-#        raw_text
-#    return get [module_name+"."+id for id in get_nonexports(raw_text)]
+    # Everything is slightly different to the normal path for using a module,
+    # as we do not resolve the name into the path, and we do not want to fail silently
+    with Context(os.path.dirname(imgpath)):
+        with open(imgpath,"r") as fp:
+            #warnings.filterwarnings("error") #HACK: to get warnings to throw
+            text = preprocess(fp.read())
+            exports = syntax.get_exports(text)
+            nonexports =  [module_name+"."+id for id in syntax.get_nonexports(text)]
+
+            #warnings.filterwarnings("default")
+            return exports + nonexports
+
+def using_system_pseudomodules_cached(module_name):
+    cache_filename = os.path.join(cache_folder,"_"+module_name+"_cache.json")
+    try:
+        with open(cache_filename,"r") as fp:
+           return json.load(fp)
+    except FileNotFoundError:
+        #recreate Cache
+        if module_name=="Core":
+            completions = using_system_pseudomodules(core_path, module_name)
+        elif module_name=="Base":
+            completions = using_system_pseudomodules(base_path, module_name)
+        else:
+            raise(ModuleNotFoundError(module_name,"system pseudo-modules"))
+
+        with open(cache_filename,"w") as fp:
+            json.dump(completions,fp)
+        return completions
 
 """
 Given some text, from the current file,
 return all the completions -- ie all identifiers currently in scope
 """
 def get_completions(main_text):
-    main_text=preprocess(main_text)
-    #TODO : I suspect you can mix all the styles in one line. I am currently ignoring that possiblily
-    #TODO : explict imports
-    #TODO : system libraries
-    def get_modules(import_type):
-        pp_imp = (pp.Literal(import_type).suppress()
-                   + pp.delimitedList(pp_identifier)
-                  )
+    with Context(os.curdir):
+        main_text=preprocess(main_text)
 
-        parsed_imps = pp_imp.scanString(main_text)
-        return _matched_only(parsed_imps)
+        #TODO : this needs to be reorganised, probably mostly into the syntax module.
+        #TODO : I suspect you can mix all the styles in one line. I am currently ignoring that possiblily
+        #TODO : explict imports eg `import a.x`
+        #TODO : relative import eg `importall .FFTW`
+        def get_modules(import_type):
+            pp_imp = (pp.Literal(import_type).suppress()
+                    + pp.delimitedList(syntax.pp_identifier)
+                    )
 
-    completions=RESERVED_WORDS #Reseved words are always completable
-    completions += flatten([using_module(mod) for mod in get_modules("using")])
-    completions += flatten([importall_module(mod) for mod in get_modules("importall")])
-    completions += flatten([import_module(mod) for mod in get_modules("import")])
+            parsed_imps = pp_imp.scanString(main_text)
+            return syntax._matched_only(parsed_imps)
 
-    return set(completions)
+        completions=syntax.RESERVED_WORDS #Reseved words are always completable
+        completions += syntax.get_nonexports(main_text)
+        completions += using_system_pseudomodules_cached("Base")
+        completions += using_system_pseudomodules_cached("Core")
+        completions += flatten([using_module(mod) for mod in get_modules("using")])
+        completions += flatten([importall_module(mod) for mod in get_modules("importall")])
+        completions += flatten([import_module(mod) for mod in get_modules("import")])
+        return set(completions)
 
 
 
 ###################testing
+#"""
 import os
 os.chdir("../samples")
 
@@ -249,7 +258,7 @@ def prl(ss):
     print(ss)
 
 
-prl(get_completions(open("../samples/main.jl","r").read()))
-
-
+prl(get_completions(open("main.jl","r").read()))
+print(preprocess(open("main.jl","r").read()))
+#"""
 

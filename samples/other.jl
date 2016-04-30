@@ -1,7 +1,7 @@
 module MyModule
 using Lib
 include("another.jl")
-
+include("subdir/yetanother.jl")
 using BigLib: thing1, thing2
 
 import Base.show
