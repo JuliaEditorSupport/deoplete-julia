@@ -7,6 +7,12 @@ base_path = "~/build/julia-master/base/sysimg.jl"
 hard_coded_loadpaths =["../samples"]
 ############main program
 
+############## UTIL
+def flatten(list_of_lists):
+    return [item for sublist in list_of_lists for item in sublist]
+############
+
+
 import pyparsing as pp
 
 
@@ -142,14 +148,38 @@ def using_module(module_name):
     return importall_module(module_name)+import_module(module_name)
 
 
+def using_system_pseudomodules(imgpath, module_name):
+    pass
+#    with open(imgpath,"r"):
+#        raw_text
+#    return get [module_name+"."+id for id in get_nonexports(raw_text)]
+
+"""
+Given some text, from the current file,
+return all the completions -- ie all identifiers currently in scope
+"""
+def get_completions(main_text):
+    #TODO : I suspect you can mix all the styles in one line. I am currently ignoring that possiblily
+
+    def get_modules(import_type):
+        pp_imp = (pp.Literal(import_type).suppress()
+                   + pp.delimitedList(pp_identifier)
+                  )
+
+        parsed_imps = pp_imp.scanString(main_text)
+        return _matched_only(parsed_imps)
+
+    completions=RESERVED_WORDS #Reseved words are always completable
+    completions += flatten([using_module(mod) for mod in get_modules("using")])
+    completions += flatten([importall_module(mod) for mod in get_modules("importall")])
+    completions += flatten([import_module(mod) for mod in get_modules("import")])
+
+    return set(completions)
 
 
 
-def testit(fn):
-    print(using_module("sample"))
 
-
-testit("../samples/sample.jl")
+print(get_completions(open("../samples/main.jl","r").read()))
 
 
 
