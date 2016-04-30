@@ -1,5 +1,6 @@
 module MyModule
 using Lib
+include("another.jl")
 
 using BigLib: thing1, thing2
 

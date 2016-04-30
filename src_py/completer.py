@@ -10,9 +10,9 @@ hard_coded_loadpaths =["../samples"]
 ############## UTIL
 def flatten(list_of_lists):
     return [item for sublist in list_of_lists for item in sublist]
-############
+############ Path related things
 
-
+import os
 import pyparsing as pp
 
 
@@ -26,15 +26,32 @@ def default_loadpaths():
     return hard_coded_loadpaths + julia_loadpaths
 
 
-
 loadpaths = default_loadpaths()
+"""
+_working_dirs = [] #Managed by Context()
+
+def current_working_dir():
+    global _working_dirs
+    return _working_dirs[-1]
+
+class Context():
+    def __init__(self, working_dir):
+        self.working_dir = working_dir
+    def __enter__(self)
+        global _working_dirs
+        _working_dirs.push(self.working_dir)
+    def __exit__(self,type,value,traceback)
+        global _working_dirs
+        _working_dirs.pop()
+
+"""
 
 ########## Finding Identifiers
 
 RESERVED_WORDS = [ "abstract", "baremodule", "begin", "bitstype", "break", "catch", "ccall", "const", "continue", "do", "else", "elseif", "end", "export", "finally", "for", "function", "global", "if", "immutable", "import", "importall", "in", "let", "local", "macro", "module", "quote", "return", "try", "type", "typealias", "using", "while"]
 pp_reserved_word = pp.Or([pp.Literal(ww) for ww in RESERVED_WORDS])
 pp_identifier = (pp.NotAny(pp_reserved_word)
-                + pp.Word(pp.alphanums + "@" + "!"))
+                + pp.Word(pp.alphanums + "@" + "!"+"_"))
 
 TRANSPERENT_PREFIXES = ["@inline", "const"]
 pp_transperent_prefix = pp.Optional(pp.Or(
@@ -77,9 +94,13 @@ def get_macros(top_scoped_text):
     return ["@"+macro for macro in macros]
 
 
-def get_functions(top_scoped_text):
+def get_functions_and_types(top_scoped_text):
     pp_functions = (pp.LineStart()
-                 + pp.Literal("function").suppress()
+                 + (pp.Literal("function")
+                        | pp.Literal("type")
+                        | pp.Literal("immutable")
+                        | pp.Literal("abstract")
+                        | pp.Literal("typealias")).suppress()
                  + pp_identifier)
     parsed_functions = pp_functions.scanString(top_scoped_text)
     functions = _matched_only(parsed_functions)
@@ -91,11 +112,49 @@ def get_nonexports(raw_text):
     top_scoped_text = raw_text
     return (get_vars(top_scoped_text)
             + get_macros(top_scoped_text)
-            + get_functions(top_scoped_text))
+            + get_functions_and_types(top_scoped_text))
+
+########### Preprocessing (and includes)
+
+def load_include(path):
+    with open(path,"r") as fp:
+        return fp.read()
 
 
-############## Loading and Includes
+def flatten_includes(text):
+    past_includes =set()
+    while(True): #Got to allow for for recursive includes
+        changed=False
+        def subsitute_include(string,loc, tokens):
+            path=tokens[0][0][1:-1]
+            if path in past_includes:
+                return "" #Avoid including something already included, (no infinite loops)
+            else:
+                past_includes.add(path)
+                changed=True;
+                return load_include(path)
+
+        pp_include = (pp.Literal("include").suppress()
+                       + pp.nestedExpr(
+                            content=pp.QuotedString('"')
+                        ).addParseAction(subsitute_include)
+
+                   )
+        text = pp_include.transformString(text )
+
+        if not(changed):
+             return text
+
+
+def preprocess(raw_text):
+    #TODO: Not handling `requires` or `reloads` right now
+    text=flatten_includes(raw_text)
+    return text
+
+
+############## Loading
 #See also https://github.com/JuliaLang/julia/blob/d6df2a0b166d360b24f4cc3631a65e3cc5c56476/base/loading.jl
+
 
 class ModuleNotFoundError(Exception):
     def __init__(self, module_name, loadpaths):
@@ -115,7 +174,7 @@ def load_module(module_name):
 
             with  open(fn,'r') as fp:
                 raw_text = fp.read()
-            return raw_text
+            return preprocess(raw_text)
         except FileNotFoundError:
             pass #No problem try the next
 
@@ -159,8 +218,10 @@ Given some text, from the current file,
 return all the completions -- ie all identifiers currently in scope
 """
 def get_completions(main_text):
+    main_text=preprocess(main_text)
     #TODO : I suspect you can mix all the styles in one line. I am currently ignoring that possiblily
-
+    #TODO : explict imports
+    #TODO : system libraries
     def get_modules(import_type):
         pp_imp = (pp.Literal(import_type).suppress()
                    + pp.delimitedList(pp_identifier)
@@ -178,8 +239,17 @@ def get_completions(main_text):
 
 
 
+###################testing
+import os
+os.chdir("../samples")
 
-print(get_completions(open("../samples/main.jl","r").read()))
+def prl(ss):
+    ss= list(ss)
+    ss.sort()
+    print(ss)
+
+
+prl(get_completions(open("../samples/main.jl","r").read()))
 
 
 
