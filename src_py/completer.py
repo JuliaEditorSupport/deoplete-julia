@@ -14,8 +14,11 @@ import pyparsing as pp
 import syntax
 import warnings
 from warnings import warn
-import functools
 import json
+
+from repoze.lru import lru_cache
+
+
 
 ###############Exceptions
 class ModuleNotFoundError(UserWarning):
@@ -84,15 +87,21 @@ class Context():
 
 ########### Preprocessing (and includes)
 
-@functools.lru_cache(256)
+@lru_cache(256)
 def load_include(path):
     path = normalise_path(path)
     try:
         with open(path,"r") as fp:
             return fp.read()
-    except FileNotFoundError as ee:
-        warn(IncludeNotFoundError(path,ee))
-        return "" #Failed to find include assume it is empty
+
+    except Exception as e:
+        if isinstance(e, IOError):    # FileNotFoundError on Py3.3+ inherits from IOError
+            warn(IncludeNotFoundError(path,e))
+            return "" #Failed to find include assume it is empty
+        else:
+            raise
+
+
 
 def flatten_includes(text):
     past_includes =set()
@@ -140,7 +149,7 @@ def preprocess(raw_text):
 
 
 
-@functools.lru_cache(256)
+@lru_cache(256)
 def load_module(module_name):
     import os.path
 
@@ -152,8 +161,12 @@ def load_module(module_name):
                 with  open(fn,'r') as fp:
                     raw_text = fp.read()
                 return preprocess(raw_text)
-            except FileNotFoundError:
-                pass #No problem try the next
+            except Exception as e:
+                if isinstance(e, IOError):    # FileNotFoundError on Py3.3+ inherits from IOError
+                    pass                #No problem try the next
+                else:
+                    raise
+
 
     warn(ModuleNotFoundError(module_name, loadpaths))
     return "" #Failed to find module, assume it is emot
@@ -203,18 +216,22 @@ def using_system_pseudomodules_cached(module_name):
     try:
         with open(cache_filename,"r") as fp:
            return json.load(fp)
-    except FileNotFoundError:
-        #recreate Cache
-        if module_name=="Core":
-            completions = using_system_pseudomodules(core_path, module_name)
-        elif module_name=="Base":
-            completions = using_system_pseudomodules(base_path, module_name)
-        else:
-            raise(ModuleNotFoundError(module_name,"system pseudo-modules"))
+    except Exception as e:
+        if isinstance(e, IOError):    # FileNotFoundError on Py3.3+ inherits from IOError
+            #recreate Cache
+            if module_name=="Core":
+                completions = using_system_pseudomodules(core_path, module_name)
+            elif module_name=="Base":
+                completions = using_system_pseudomodules(base_path, module_name)
+            else:
+                raise(ModuleNotFoundError(module_name,"system pseudo-modules"))
 
-        with open(cache_filename,"w") as fp:
-            json.dump(completions,fp)
-        return completions
+            with open(cache_filename,"w") as fp:
+                json.dump(completions,fp)
+            return completions
+        else:
+            raise
+
 
 """
 Given some text, from the current file,
