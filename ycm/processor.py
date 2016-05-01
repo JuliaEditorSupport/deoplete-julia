@@ -1,3 +1,8 @@
+"""
+This is the main, core file for generating completions for Julia.
+"""
+
+
 import os
 ##########  Config
 julia_cmd = "julia-master"
@@ -60,7 +65,9 @@ def loadpaths():
     for path in _loadpaths:
         yield normalise_path(path)
 
+#TODO: Lookout for changes to LOADPATHS, and attempt to update our own loadpaths
 
+### Manage the current working directory
 _working_dirs = ["."] #Managed by Context()
 
 def current_working_dir():
@@ -71,7 +78,6 @@ def normalise_path(path):
     if not os.path.isabs(path):
          path = os.path.abspath(os.path.join(current_working_dir(), path))
     return path
-
 
 class Context():
     def __init__(self, working_dir):
@@ -265,7 +271,7 @@ def get_completions(main_text):
 
 
 ###################testing
-#"""
+"""
 import os
 os.chdir("../samples")
 
@@ -277,5 +283,5 @@ def prl(ss):
 
 prl(get_completions(open("main.jl","r").read()))
 print(preprocess(open("main.jl","r").read()))
-#"""
+"""
 
