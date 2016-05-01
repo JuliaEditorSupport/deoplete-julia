@@ -32,7 +32,7 @@ Current experiments on this are located in te _generated_with_julia_ folder
 
 
 ## Chaos Running Julia
-Liverun execute as much code as possible, so that we do know the things in context, by askign the background running session.
+Liverun execute as much code as possible, so that we do know the things in context, by askign the background running session what completions should be made, using Base.jl
 
 I'm not sure why an approach like:
 
@@ -50,3 +50,9 @@ https://github.com/JuliaLang/julia/blob/master/base/REPLCompletions.jl us to
 
 wouldn't work.
 But right now a bit busy to make something dynamic.
+
+
+
+## CodeTool.jl
+https://github.com/JunoLab/CodeTools.jl
+Hook into Julia to running the CodeTool.jl completions.
