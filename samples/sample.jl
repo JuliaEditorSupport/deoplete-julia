@@ -1,5 +1,12 @@
+#set omnifunc=syntaxcomplete#Complete
+#let g:ycm_collect_identifiers_from_tags_files = 1
+#set tags+=base.tags
+
 module MyModule
 using Lib
+
+intersection
+
 
 using BigLib: thing1, thing2
 
