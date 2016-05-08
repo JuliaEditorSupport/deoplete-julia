@@ -1,3 +1,5 @@
+#using Optim
+
 kinds = Dict("module"=>"p",
 			 "variable"=>"v",
 			 "function"=>"f",
@@ -42,7 +44,7 @@ function write_tag(fp::IO, tag::Tag)
 	println(fp)
 end
 
-
+###############################
 
 function tags(name_sym::Symbol, mm::Module,  value::Function)
 	name=string(name_sym)
@@ -85,7 +87,9 @@ end
 function tags(name_sym::Symbol,mm::Module, tt::DataType, record_truename=false)
 	name=string(name_sym)
 	Task() do
+		
 		filename = module_to_filename(mm) 
+		
 		#This is a bad attempt But it is what we got right now
 		fields=Dict("kind"  => kinds["datatype"],
 					"module"=> string(mm),
@@ -101,10 +105,14 @@ function tags(name_sym::Symbol,mm::Module, tt::DataType, record_truename=false)
 		if record_truename
 			fields["true_name"]=func.name.name |> string
 		end
+
 		if tt.name.names |> length >= nfields(tt) #HACK: Avoid Bug where there are not as many names as fields.
-			type_fields = ["$fname::"*string(fieldtype(tt,fname)) for fname in fieldnames(tt)]
-			fields["fields"] = join(",", type_fields)
+			if name_sym != :Module #HACK/BUG: Module can not have its fieldtype read.
+				type_fields = ["$fname::"*string(fieldtype(tt,fname)) for fname in fieldnames(tt)]
+				fields["fields"] = join(type_fields,",")
+			end
 		end
+		
 		produce(Tag(name,"/^[typealias|type|abstract|immutable]\\s+name\\s*=/",
 					filename,fields))
 	end	
@@ -125,13 +133,15 @@ end
 
 function module_to_filename(mm::Module)
 	name = mm==Base ? "sysimg" : mm==Core ? "coreimg": string(mm)
-	path=Base.find_source_file(name*".jl")
+	path = Base.find_source_file(name*".jl")
 	path!=nothing ? path : "<module $name: unkown path>" 
 end
 
 function tags(name_sym::Symbol,mm::Module, submodule::Module)
+	
 	name=string(name_sym)
 	Task() do 
+
 		filename = module_to_filename(submodule)
 		fields=Dict("kind"  => kinds["module"],
 					"module"=> module_parent(mm) |> string,
@@ -170,6 +180,68 @@ function tags_from_module(mm::Module)
 end
 
 
-for tag in tags_from_module(Base)
-	write_tag(STDOUT,tag) 
+####################################################
+
+function parseall(str)
+    #Inspired by https://github.com/JuliaLang/julia/blob/9caa28d50b090cea746ce5c9ad371f5cc2c32644/test/parse.jl#L3
+    Task() do 
+        pos = start(str)
+        while !done(str, pos)
+            ex, pos = parse(str, pos)
+            produce(ex)
+        end
+    end
 end
+
+function get_modules_names(code)    
+    function inner(::Any)
+    end
+    function inner(ee::Expr)
+         if ee.head == :using || ee.head==:importall
+            module_name = join(map(string,ee.args),".")
+            produce(module_name)
+        else
+            for arg in ee.args
+                inner(arg)
+            end
+        end
+    end
+    
+    Task() do
+        for ee in code |> parseall
+            for mod in @task inner(ee)
+                produce(mod)
+            end
+        end
+    end
+end
+
+function name2module(name)
+    eval(parse("import "*name))
+    eval(parse(name))
+end
+ 
+function modules(filename)
+	code = open(readstring, filename,"r")
+	
+	#TODO: remove duplicates with Iterators.distinct -- but that package is broken
+	Task() do
+		for mod_name in get_modules_names(code)
+			produce(name2module(mod_name))	
+		end
+	end
+end
+
+for filename in ARGS
+	println("Tagging $filename")
+	
+	mods = append!([Base, Core],collect(modules(filename)))
+	for mod in mods
+		open(joinpath(dirname(filename), "."*basename(filename)*".tags"),"w") do fp
+			for tag in tags_from_module(mod)
+				write_tag(fp,tag)
+			end
+		end
+	end
+end
+println("Done")
