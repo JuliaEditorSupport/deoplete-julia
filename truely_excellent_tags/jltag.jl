@@ -47,13 +47,32 @@ function write_tag(fp::IO, tag::Tag)
 
 	print(fp, "$(tag.name)\t$(tag.file)\t$(tag.address);\"")
 	for (field,value) in tag.fields
-		value =	replace(value,r"\s"," ")
+		value = escape_string(value)
+		value=replace(value,":","：") #Repace colons with Unicode Fullwidth colons, to avoid splitting issues
 		print(fp,"\t$field:$value")
 	end
 	println(fp)
 end
 
 ###############################
+
+
+
+function module_to_filename(mm::Module)
+	name = mm==Base ? "sysimg" : mm==Core ? "coreimg": string(mm)
+	path = Base.find_source_file(name*".jl")
+	path!=nothing ? path : "<module $name: unkown path>" 
+end
+
+function docs(func::Function, method::Method)
+	try 
+		signiture_types = method.sig.types[2:end]
+		doc = Base.Docs.doc(func,signiture_types...)
+		return doc.meta[:results][1].text[1] #What a long path
+	catch ee
+		return "No docs found for " * string(method)
+	end
+end
 
 function tags(name_sym::Symbol, mm::Module,  value::Function)
 	name=string(name_sym)
@@ -70,7 +89,8 @@ function tags(name_sym::Symbol, mm::Module,  value::Function)
 				"kind" => kinds["function"],
 				"arity" => string(length(args)),
 				"args" => join(args,","),
-				"string" => string(name)
+				"string" => string(func),
+				"doc" => docs(value, func),
 				)
 			produce(Tag(name,file,address,fields))	
 		end
@@ -137,13 +157,6 @@ function tags(name_sym::Symbol, mm::Module,  value::Type)
 			produce(tag)
 		end
 	end
-end
-
-
-function module_to_filename(mm::Module)
-	name = mm==Base ? "sysimg" : mm==Core ? "coreimg": string(mm)
-	path = Base.find_source_file(name*".jl")
-	path!=nothing ? path : "<module $name: unkown path>" 
 end
 
 function tags(name_sym::Symbol,mm::Module, submodule::Module)

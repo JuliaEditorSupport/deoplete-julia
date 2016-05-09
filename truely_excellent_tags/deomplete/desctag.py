@@ -10,7 +10,7 @@ import re
 from collections import namedtuple
 from os.path import exists, getmtime, getsize
 from .base import Base
-
+import codecs
 TagsCacheItem = namedtuple('TagsCacheItem', 'mtime candidates')
 
 def readtagfile(f):
@@ -22,9 +22,18 @@ def readtagfile(f):
             fields = dict([ff.split(":") for ff in entries[3:-1]])
             fields = dict([(kk.strip(),vv.strip()) for kk,vv in fields.items()])
 
-            yield {'word':word, 'dup':1, 'kind':fields.get('kind',""), 'menu':fields.get('module',""), 'info':fields.get("string","")}
-        except ValueError:
-            pass
+            yield {'word':word,
+                   'dup':1,
+                   'kind':fields.get('kind',""),
+                   'menu':fields.get('module',"")+"."+fields.get('string',""),
+                   'info':(fields.get('module',"")+"."+fields.get('string',"") + "\n"+
+                           codecs.decode(fields.get("doc",""), "unicode-escape"))
+                   }
+        except ValueError as ee:
+            if line[0]=='!':
+                pass
+            else:
+                raise(ValueError("On line: " + line +"\n",ee))
 
 
 
