@@ -15,6 +15,17 @@ immutable Tag
 	fields::Dict{AbstractString,AbstractString}
 end
 
+function write_header(fp::IO)
+	println(fp,"!_TAG_FILE_FORMAT   2   /extended format; --format=1 will not append ;\" to lines/")
+	println(fp,"!_TAG_FILE_SORTED   0   /0=unsorted, 1=sorted, 2=foldcase/")
+	println(fp,"!_TAG_PROGRAM_AUTHOR    Lyndon White aka Frames aka oxinabox /lyndon.white@reseach.uwa.edu.au")
+	println(fp,"!_TAG_PROGRAM_NAME  jltags //")
+	#println(fp,"!_TAG_PROGRAM_URL   http://ctags.sourceforge.net    /official site/")
+	#println(fp,"!_TAG_PROGRAM_VERSION   5.9~svn20110310 //")
+end
+
+
+
 
 """
 http://ctags.sourceforge.net/FORMAT
@@ -39,6 +50,7 @@ function write_tag(fp::IO, tag::Tag)
 
 	print(fp, "$(tag.name)\t$(tag.file)\t$(tag.address);\"")
 	for (field,value) in tag.fields
+		value =	replace(value,r"\s"," ")
 		print(fp,"\t$field:$value")
 	end
 	println(fp)
@@ -234,10 +246,12 @@ end
 
 for filename in ARGS
 	println("Tagging $filename")
-	
+		
 	mods = append!([Base, Core],collect(modules(filename)))
-	for mod in mods
-		open(joinpath(dirname(filename), "."*basename(filename)*".tags"),"w") do fp
+
+	open(joinpath(dirname(filename), "."*basename(filename)*".tags"),"w") do fp
+		for mod in mods
+			write_header(fp)
 			for tag in tags_from_module(mod)
 				write_tag(fp,tag)
 			end
