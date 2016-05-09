@@ -1,11 +1,11 @@
 #using Optim
 
-kinds = Dict("module"=>"p",
-			 "variable"=>"v",
-			 "function"=>"f",
-			 "datatype"=>"s",
-			 "union"=>"u",
-			 "type" =>"t"
+kinds = Dict("module"=>"module",
+			 "variable"=>"variable",
+			 "function"=>"function",
+			 "datatype"=>"datatype",
+			 "union"=>"union",
+			 "type" =>"type"
 			 )
 
 immutable Tag
@@ -25,10 +25,7 @@ function write_header(fp::IO)
 end
 
 
-
-
-"""
-http://ctags.sourceforge.net/FORMAT
+"""http://ctags.sourceforge.net/FORMAT
 {tagname}<Tab>{tagfile}<Tab>{tagaddress}[;"<Tab>{tagfield}..]
 
    {tagname}	Any identifier, not containing white space..
@@ -150,13 +147,12 @@ function module_to_filename(mm::Module)
 end
 
 function tags(name_sym::Symbol,mm::Module, submodule::Module)
-	
 	name=string(name_sym)
 	Task() do 
 
 		filename = module_to_filename(submodule)
 		fields=Dict("kind"  => kinds["module"],
-					"module"=> module_parent(mm) |> string,
+					"module"=> module_parent(submodule) |> string,
 					"string"=> string(submodule)
 					)
 
