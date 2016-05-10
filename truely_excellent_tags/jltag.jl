@@ -1,5 +1,9 @@
 #using Optim
 
+#TODO: consider a per module cache file
+#cache_location = Pkg.Dir.path()*"../jltags_cache/"
+#cacheable_modules = Set([Base, Core])
+
 kinds = Dict("module"=>"module",
 			 "variable"=>"variable",
 			 "function"=>"function",
@@ -24,7 +28,6 @@ function write_header(fp::IO)
 	#println(fp,"!_TAG_PROGRAM_VERSION   5.9~svn20110310 //")
 end
 
-
 """http://ctags.sourceforge.net/FORMAT
 {tagname}<Tab>{tagfile}<Tab>{tagaddress}[;"<Tab>{tagfield}..]
 
@@ -48,7 +51,6 @@ function write_tag(fp::IO, tag::Tag)
 	print(fp, "$(tag.name)\t$(tag.file)\t$(tag.address);\"")
 	for (field,value) in tag.fields
 		value = escape_string(value)
-		value=replace(value,":","：") #Repace colons with Unicode Fullwidth colons, to avoid splitting issues
 		print(fp,"\t$field:$value")
 	end
 	println(fp)
@@ -190,13 +192,18 @@ function tags(name_sym::Symbol,mm::Module, variable::Any)
 	end
 end
 
-function tags_from_module(mm::Module)
+###############
 
-	Task() do 
-		for name_sym in names(mm)
-			value = eval(mm,name_sym)
-			map(produce, tags(name_sym, mm,  value))
-		end
+
+const _module_cache = Dict{Module, Vector}()
+function tags_from_module(mm::Module)
+	get!(_module_cache, mm) do
+		Task() do 
+			for name_sym in names(mm)
+				value = eval(mm,name_sym)
+				map(produce, tags(name_sym, mm,  value))
+			end
+		end |> collect
 	end
 end
 

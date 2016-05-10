@@ -19,7 +19,7 @@ def readtagfile(f):
         entries = line.split("\t")
         try:
             word, file, address = entries[0:3]
-            fields = dict([ff.split(":") for ff in entries[3:-1]])
+            fields = dict([ff.split(":",1) for ff in entries[3:-1]])
             fields = dict([(kk.strip(),vv.strip()) for kk,vv in fields.items()])
 
             yield {'word':word,
