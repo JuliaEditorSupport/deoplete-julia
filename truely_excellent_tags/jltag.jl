@@ -198,12 +198,18 @@ end
 const _module_cache = Dict{Module, Vector}()
 function tags_from_module(mm::Module)
 	get!(_module_cache, mm) do
-		Task() do 
-			for name_sym in names(mm)
-				value = eval(mm,name_sym)
-				map(produce, tags(name_sym, mm,  value))
-			end
-		end |> collect
+		try
+			println("++++++++ Loading Tags from  $mm  +++++++")
+			Task() do 
+				for name_sym in names(mm)
+					value = eval(mm,name_sym)
+					map(produce, tags(name_sym, mm,  value))
+				end
+			end |> collect
+		catch ee
+			warn(string(Module)*" tagging failed. As "* string(ee))
+			[]
+		end
 	end
 end
 
