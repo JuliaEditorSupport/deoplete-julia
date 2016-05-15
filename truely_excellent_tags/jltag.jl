@@ -1,8 +1,5 @@
 #using Optim
 
-#TODO: consider a per module cache file
-#cache_location = Pkg.Dir.path()*"../jltags_cache/"
-#cacheable_modules = Set([Base, Core])
 
 kinds = Dict("module"=>"module",
 			 "variable"=>"variable",
@@ -195,23 +192,47 @@ end
 ###############
 
 
-const _module_cache = Dict{Module, Vector}()
 function tags_from_module(mm::Module)
-	get!(_module_cache, mm) do
-		try
-			println("++++++++ Loading Tags from  $mm  +++++++")
-			Task() do 
-				for name_sym in names(mm)
-					value = eval(mm,name_sym)
-					map(produce, tags(name_sym, mm,  value))
-				end
-			end |> collect
-		catch ee
-			warn(string(Module)*" tagging failed. As "* string(ee))
-			[]
-		end
+	try
+		println("++++++++ Loading Tags from  $mm  +++++++")
+		Task() do 
+			for name_sym in names(mm)
+				value = eval(mm,name_sym)
+				map(produce, tags(name_sym, mm,  value))
+			end
+		end |> collect
+	catch ee
+		warn(string(Module)*" tagging failed. As "* string(ee))
+		[]
 	end
 end
+
+function name2module(name)
+	eval(parse("import "*name))
+    eval(parse(name))
+end
+
+##################################
+#Create Module cache
+const cache_location = joinpath(Pkg.Dir.path(),"../jltags_cache/")
+
+
+
+function get_module_tag_file(module_name)
+	cache_name = joinpath(cache_location,module_name*".tags")
+	if !isfile(cache_name)
+		mkpath(cache_location)
+		open(cache_name,"w") do fp
+			write_header(fp)
+			mod = name2module(module_name)
+			for tag in tags_from_module(mod)
+				write_tag(fp,tag)
+			end
+		end
+	end	
+	cache_name
+end
+
 
 
 ####################################################
@@ -250,33 +271,19 @@ function get_modules_names(code)
     end
 end
 
-function name2module(name)
-    eval(parse("import "*name))
-    eval(parse(name))
-end
- 
-function modules(filename)
-	code = open(readstring, filename,"r")
-	
-	#TODO: remove duplicates with Iterators.distinct -- but that package is broken
-	Task() do
-		for mod_name in get_modules_names(code)
-			produce(name2module(mod_name))	
-		end
-	end
-end
+
+######################
 
 for filename in ARGS
 	println("Tagging $filename")
 		
-	mods = append!([Base, Core],collect(modules(filename)))
+	code = open(readstring, filename,"r")
+	mod_names = append!(["Base", "Core"],collect(get_modules_names(code )))
 
 	open(joinpath(dirname(filename), "."*basename(filename)*".tags"),"w") do fp
-		for mod in mods
-			write_header(fp)
-			for tag in tags_from_module(mod)
-				write_tag(fp,tag)
-			end
+		for mod_name in mod_names
+			tag_file = get_module_tag_file(mod_name)
+			println(fp, open(readstring, tag_file,"r")) #Append it all
 		end
 	end
 end

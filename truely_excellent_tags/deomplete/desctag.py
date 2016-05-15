@@ -16,6 +16,8 @@ TagsCacheItem = namedtuple('TagsCacheItem', 'mtime candidates')
 def readtagfile(f):
     # Replace deocomplete.util.parse_file_pattern(f, '^[^!][^\t]+'))
     for line in f:
+        if not(line.strip()): continue
+
         entries = line.split("\t")
         try:
             word, file, address = entries[0:3]
@@ -75,11 +77,10 @@ class Source(Base):
 
 
     def __get_tagfiles(self):
-        limit = self.vim.vars['deoplete#tag#cache_limit_size']
         include_files = self.vim.call(
             'neoinclude#include#get_tag_files') if self.vim.call(
                 'exists', '*neoinclude#include#get_tag_files') else []
         return [x for x in self.vim.call(
                 'map', self.vim.call('tagfiles') + include_files,
                 'fnamemodify(v:val, ":p")')
-                if exists(x) and getsize(x) < limit]
+                if exists(x)]
