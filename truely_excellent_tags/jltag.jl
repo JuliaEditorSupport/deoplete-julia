@@ -16,13 +16,17 @@ immutable Tag
 	fields::Dict{AbstractString,AbstractString}
 end
 
-function write_header(fp::IO)
+const mtime_line_prefix = "!_TAG_SOURCE_MTIME"
+function write_header(fp::IO, file_mtimes=[])
 	println(fp,"!_TAG_FILE_FORMAT   2   /extended format; --format=1 will not append ;\" to lines/")
 	println(fp,"!_TAG_FILE_SORTED   0   /0=unsorted, 1=sorted, 2=foldcase/")
 	println(fp,"!_TAG_PROGRAM_AUTHOR    Lyndon White aka Frames aka oxinabox /lyndon.white@reseach.uwa.edu.au")
 	println(fp,"!_TAG_PROGRAM_NAME  jltags //")
 	#println(fp,"!_TAG_PROGRAM_URL   http://ctags.sourceforge.net    /official site/")
 	#println(fp,"!_TAG_PROGRAM_VERSION   5.9~svn20110310 //")
+	for (filename, mtime) in file_mtimes
+		println(fp,mtime_line_prefix,"\t",filename,"\t",string(mtime))
+	end
 end
 
 """http://ctags.sourceforge.net/FORMAT
@@ -107,7 +111,7 @@ function tags(name_sym::Symbol, mm::Module,  value::Union)
 					"types"  => join(",",map(string,value.types)),
 					"string" => string(value)
 					)
-		produce(Tag(name,"/name\\s*=/",filename,fields))	
+		produce(Tag(name,filename,"/name\\s*=/",fields))	
 	end
 end
 
@@ -141,8 +145,7 @@ function tags(name_sym::Symbol,mm::Module, tt::DataType, record_truename=false)
 			end
 		end
 		
-		produce(Tag(name,"/^[typealias|type|abstract|immutable]\\s+name\\s*=/",
-					filename,fields))
+		produce(Tag(name,filename, "/^[typealias|type|abstract|immutable]\\s+name\\s*=/", fields))
 	end	
 end
 
@@ -168,7 +171,7 @@ function tags(name_sym::Symbol,mm::Module, submodule::Module)
 					"string"=> string(submodule)
 					)
 
-		produce(Tag(name,"/^module name/",filename,fields))
+		produce(Tag(name,filename, "/^module name/",fields))
 	end
 end
 
@@ -185,7 +188,7 @@ function tags(name_sym::Symbol,mm::Module, variable::Any)
 					"constant" => string(isconst(mm,name_sym)),
 					"string" => string(variable)
 					)
-		produce(Tag(name,"/name\\s*=/",filename,fields))	
+		produce(Tag(name,filename, "/name\\s*=/",fields))	
 	end
 end
 
@@ -194,7 +197,7 @@ end
 
 function tags_from_module(mm::Module)
 	try
-		println("++++++++ Loading Tags from  $mm  +++++++")
+		println("++++++++ Generating Tags from  $mm  +++++++")
 		Task() do 
 			for name_sym in names(mm)
 				value = eval(mm,name_sym)
@@ -216,19 +219,42 @@ end
 #Create Module cache
 const cache_location = joinpath(Pkg.Dir.path(),"../jltags_cache/")
 
+function create_module_tagsfile(cache_name, module_name)
+	mkpath(cache_location)
+	open(cache_name,"w") do fp
+		mod = name2module(module_name)
+		tags = tags_from_module(mod) |> collect
+		file_mtimes = Dict([tag.file=>stat(tag.file).mtime|>Dates.unix2datetime for tag in tags])
+		write_header(fp, file_mtimes)
+		for tag in tags
+			write_tag(fp,tag)
+		end
+	end
+end
+
+
+function is_cache_current(cache_name)
+	#It is practically impossible to add or remove a tag-able item from a module,
+	#without changing one of the existing files (Julia does not do directory based submodules)
+	for line in eachline(cache_name)
+		if line[1:length(mtime_line_prefix)] == mtime_line_prefix
+			prefix, filename, mtime_str = split(line,"\t")
+			cached_mtime = DateTime(mtime_str)
+			cur_mtime = stat(filename).mtime |> Dates.unix2datetime
+			if cached_mtime!=cur_mtime #Forward or back we don't care. ClockSkew etc.
+				return false
+			end
+		end
+	end
+	return true
+end
 
 
 function get_module_tag_file(module_name)
+	println("Sourcing $module_name")
 	cache_name = joinpath(cache_location,module_name*".tags")
-	if !isfile(cache_name)
-		mkpath(cache_location)
-		open(cache_name,"w") do fp
-			write_header(fp)
-			mod = name2module(module_name)
-			for tag in tags_from_module(mod)
-				write_tag(fp,tag)
-			end
-		end
+	if !isfile(cache_name) || !is_cache_current(cache_name)
+		create_module_tagsfile(cache_name, module_name)
 	end	
 	cache_name
 end
