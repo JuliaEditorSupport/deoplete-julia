@@ -16,7 +16,7 @@ TagsCacheItem = namedtuple('TagsCacheItem', 'mtime candidates')
 def readtagfile(f):
     # Replace deocomplete.util.parse_file_pattern(f, '^[^!][^\t]+'))
     for line in f:
-        if not(line.strip()) or line[0]='!'  : continue
+        if not(line.strip()) or line[0]=='!'  : continue
 
         entries = line.split("\t")
         try:
