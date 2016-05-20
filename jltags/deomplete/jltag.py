@@ -10,6 +10,7 @@ import re
 from collections import namedtuple
 from os.path import exists, getmtime, getsize
 from .base import Base
+import subprocess
 import codecs
 TagsCacheItem = namedtuple('TagsCacheItem', 'mtime candidates')
 
@@ -35,18 +36,32 @@ def readtagfile(f):
             raise(ValueError("On line: " + line +"\n",ee))
 
 
+JULIA_PATH = "/home/ubuntu/build/julia-master/julia"
+JLTAG_PATH = "/mnt/julia-vim-completions/jltags/jltag.jl"
+
+def get_refered_tagfiles(vim):
+    current_filename = vim.call('expand','%:p')
+    #vim.command("echom \"jltag: %s\"" % current_filename)
+    jltag_proc = subprocess.Popen([JULIA_PATH, JLTAG_PATH, "refer", current_filename], stdout=subprocess.PIPE)
+    tagfiles=[line.decode('utf-8').strip() for line in jltag_proc.stdout.readlines()]
+    return tagfiles
+
+
 
 class Source(Base):
 
     def __init__(self, vim):
         Base.__init__(self, vim)
 
-        self.name = 'desctag'
-        self.mark = '[D]'
-
+        self.name = 'jltag'
+        self.mark = '[J]'
+        self.filetypes = ['julia']
         self.__cache = {}
 
     def on_buffer(self, context):
+        if 'tag' in context['sources']:
+            self.vim.command("echom \"jltag: Warning deocomple-source 'tag' and  'jltag' probably should not mix.\"")
+
         self.__make_cache(context)
 
     def gather_candidates(self, context):
@@ -74,10 +89,16 @@ class Source(Base):
 
 
     def __get_tagfiles(self):
+        refered_tagfiles = get_refered_tagfiles(self.vim)
+        for tf in refered_tagfiles:
+             self.vim.command("echom \"jltag: %s %s\"" % (tf,exists(tf)))
+
         include_files = self.vim.call(
             'neoinclude#include#get_tag_files') if self.vim.call(
                 'exists', '*neoinclude#include#get_tag_files') else []
         return [x for x in self.vim.call(
-                'map', self.vim.call('tagfiles') + include_files,
+                'map', self.vim.call('tagfiles') + include_files + refered_tagfiles,
                 'fnamemodify(v:val, ":p")')
                 if exists(x)]
+
+

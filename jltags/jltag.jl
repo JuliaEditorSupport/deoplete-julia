@@ -1,12 +1,9 @@
-#using Optim
-
-
 kinds = Dict("module"=>"module",
 			 "variable"=>"variable",
 			 "function"=>"function",
 			 "datatype"=>"datatype",
 			 "union"=>"union",
-			 "type" =>"type"
+			 "type:::" =>"type"
 			 )
 
 immutable Tag
@@ -119,9 +116,7 @@ end
 function tags(name_sym::Symbol,mm::Module, tt::DataType, record_truename=false)
 	name=string(name_sym)
 	Task() do
-		
 		filename = module_to_filename(mm) 
-		
 		#This is a bad attempt But it is what we got right now
 		fields=Dict("kind"  => kinds["datatype"],
 					"module"=> string(mm),
@@ -170,7 +165,6 @@ function tags(name_sym::Symbol,mm::Module, submodule::Module)
 					"module"=> module_parent(submodule) |> string,
 					"string"=> string(submodule)
 					)
-
 		produce(Tag(name,filename, "/^module name/",fields))
 	end
 end
@@ -197,7 +191,7 @@ end
 
 function tags_from_module(mm::Module)
 	try
-		println("++++++++ Generating Tags from  $mm  +++++++")
+		println(STDERR, "++++++++ Generating Tags from  $mm  +++++++")
 		Task() do 
 			for name_sym in names(mm)
 				value = eval(mm,name_sym)
@@ -230,6 +224,7 @@ function create_module_tagsfile(cache_name, module_name)
 			write_tag(fp,tag)
 		end
 	end
+	#TODO: Consider Setting mtime of the cache to the be mtime of the most recently modified file. Would that be useful?
 end
 
 
@@ -251,7 +246,7 @@ end
 
 
 function get_module_tag_file(module_name)
-	println("Sourcing $module_name")
+	println(STDERR, "Sourcing $module_name")
 	cache_name = joinpath(cache_location,module_name*".tags")
 	if !isfile(cache_name) || !is_cache_current(cache_name)
 		create_module_tagsfile(cache_name, module_name)
@@ -274,7 +269,8 @@ function parseall(str)
     end
 end
 
-function get_modules_names(code)    
+function get_modules_names(filename)
+	code = readstring(filename)
     function inner(::Any)
     end
     function inner(ee::Expr)
@@ -289,6 +285,8 @@ function get_modules_names(code)
     end
     
     Task() do
+		produce("Core")
+		produce("Base")
         for ee in code |> parseall
             for mod in @task inner(ee)
                 produce(mod)
@@ -300,11 +298,9 @@ end
 
 ######################
 
-for filename in ARGS
-	println("Tagging $filename")
-		
-	code = open(readstring, filename,"r")
-	mod_names = append!(["Base", "Core"],collect(get_modules_names(code )))
+function make_standalone_tagfile(filename)
+	println(STDERR,"Standalone Tagging $filename")
+	mod_names = get_modules_names(filenames)
 
 	open(joinpath(dirname(filename), "."*basename(filename)*".tags"),"w") do fp
 		for mod_name in mod_names
@@ -313,4 +309,45 @@ for filename in ARGS
 		end
 	end
 end
-println("Done")
+
+function print_refered_tagfile_paths(filename)
+	mod_names = get_modules_names(filename)
+	for mod_name in mod_names
+		tag_file = get_module_tag_file(mod_name)
+		println(tag_file)
+	end
+end
+
+
+
+###ARGS mode
+if length(ARGS)>0
+	mode = lowercase(ARGS[1])
+	if mode == "standalone"
+		make_standalone_tagfile(ARGS[2])
+	elseif mode == "refer"
+		print_refered_tagfile_paths(ARGS[2])
+	else
+		println("""Invalid mode selected.
+		Usage: jltags mode target`
+
+		jltags primary use is generating tagfiles for modules.
+		It always does this, no matter the mode.
+		They are stored in $cache_location
+		jltags automatically checks if they need to be regenerated each time they are used.
+
+		modes:
+
+			- standalone:
+				Generate a standalone tagfile, with the naming scheme ".<target>.tag".
+				This file contained all the tags for all modules used in the target file.
+			
+			- refer:
+				outputs to standard out, a linebreak seperated list of paths to tagfiles for modules that are used by the target
+				
+				"""
+		)
+	end
+
+	
+end
