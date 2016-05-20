@@ -3,7 +3,7 @@ kinds = Dict("module"=>"module",
 			 "function"=>"function",
 			 "datatype"=>"datatype",
 			 "union"=>"union",
-			 "type:::" =>"type"
+			 "type" =>"type"
 			 )
 
 immutable Tag
@@ -215,8 +215,12 @@ const cache_location = joinpath(Pkg.Dir.path(),"../jltags_cache/")
 
 function create_module_tagsfile(cache_name, module_name)
 	mkpath(cache_location)
+	mod = name2module(module_name)
+	if mod==nothing
+		warn("$(module_name) Not Found")
+		return nothing
+	end
 	open(cache_name,"w") do fp
-		mod = name2module(module_name)
 		tags = tags_from_module(mod) |> collect
 		file_mtimes = Dict([tag.file=>stat(tag.file).mtime|>Dates.unix2datetime for tag in tags])
 		write_header(fp, file_mtimes)
