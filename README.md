@@ -5,15 +5,19 @@ You can get a little way using julia-vim, then turning on syntax competions base
 But we want more.
 In this repo that is being explored.
 
-Currently, the focus is on YCM.
+Currently, the focus is on jltags, and through that deomplete based completions.
+It is actually working, but not wrapped up nicely enough to deploy -- will probably move it out of this repo soo, into its own.
+Check out the video of it working. (Click the image below)
+[![asciicast](https://asciinema.org/a/688g8iyhj1idrtz8ooptr6iso.png)](https://asciinema.org/a/688g8iyhj1idrtz8ooptr6iso)
+(Yes, I know that code is not actually correct. Recording demos is hard.)
+
+
 But there are other approaches
 
 ## YCM
 https://github.com/Valloric/YouCompleteMe
-This is Almost ready to go, (for first actual test)
-it just needs the 
 
-Do a rough Parse of the files and it's includes.
+Do a rough Parse of the files and it's include -- using python.
 Its not a perfect parse, infact it is very poor.
 The goal right now is get ~80% of completions that are expected.
 The easy ones.
