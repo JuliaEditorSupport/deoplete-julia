@@ -1,62 +1,34 @@
-# julia-vim-completions
-Julia doesn't have good VIM completions to my knowledge.
-You can get a little way using julia-vim, then turning on syntax competions based on highlighting.
+# Deoplete-Julia 
+This package supplimentes julia-vim by providing syntax competions, through Deoplete.
 
-But we want more.
-In this repo that is being explored.
+## WIP
+This package is functional, but not, right now easily installed.
 
-Currently, the focus is on jltags, and through that deomplete based completions.
-It is actually working, but not wrapped up nicely enough to deploy -- will probably move it out of this repo soo, into its own.
+
+## Requirements:
+
+ - [NeoVim](https://github.com/neovim/neovim)
+ - [Deoplete](https://github.com/Shougo/deoplete.nvim)
+ 
+ 
+## Installation
+ - WIP: Use faverate Vim package manager, eg Vundle.
+ 
+Set your `.vimrc` config up to use this new source -- add something like (you should already have the first line)
+
+```
+let g:deoplete#enable_at_startup = 1
+let g:deoplete#sources = {}
+let g:deoplete#sources._ = ['julia','buffer','member','dictionary','omni','file']
+```
+
+The first time a you `using` a module, will take a little longer as it caches the names from that module (in particular the first time you edit a file at all will take longer, as it builds the cache of names for `Base`).
+This cache should rebuild when the module is editted.
+
+You shouldn't notice the cache being generated -- it won't hang, but julia completions will not work til it is done.
+
+## Demo
+
 Check out the video of it working. (Click the image below)
 [![asciicast](https://asciinema.org/a/688g8iyhj1idrtz8ooptr6iso.png)](https://asciinema.org/a/688g8iyhj1idrtz8ooptr6iso)
 (Yes, I know that code is not actually correct. Recording demos is hard.)
-
-
-But there are other approaches
-
-## YCM
-https://github.com/Valloric/YouCompleteMe
-
-Do a rough Parse of the files and it's include -- using python.
-Its not a perfect parse, infact it is very poor.
-The goal right now is get ~80% of completions that are expected.
-The easy ones.
-It will probably never find functions that are declared using macros.
-
-
-Do a grep for TODO to find what is not done, yet.
-
-
-## Staticly generated completions.
-The Julia REPL can produce completions,
-Create a julia script that imports your libraries,
-then ask the Base.REPL what completions exist.
-Current experiments on this are located in te _generated_with_julia_ folder
-
-
-
-## Chaos Running Julia
-Liverun execute as much code as possible, so that we do know the things in context, by askign the background running session what completions should be made, using Base.jl
-
-I'm not sure why an approach like:
-
-
-```lang=irc
-10:41 < Frames> Why can't I have syntax completion in vim?...
-10:44 < Frames> I am very tempted to make a hacky method that attempts to send
-                every line to a REPL in the background, and catchs all
-                exceptions and has a 5ms timeout (per line). and then asked the
-                REPL for a list of completions.
-11:03 < Frames> Or actually, shouldn't it just be liniking
-https://github.com/JuliaLang/julia/blob/master/base/REPLCompletions.jl us to
-                the completion list in vim?
-```
-
-wouldn't work.
-But right now a bit busy to make something dynamic.
-
-
-
-## CodeTool.jl
-https://github.com/JunoLab/CodeTools.jl
-Hook into Julia to running the CodeTool.jl completions.
