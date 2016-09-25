@@ -14,15 +14,20 @@ This package is functional, but not, right now easily installed.
 
 ## Requirements:
 
- - [NeoVim](https://github.com/neovim/neovim)
- - [Deoplete](https://github.com/Shougo/deoplete.nvim)
- - [Julia](https://github.com/JuliaLang/julia)
+ - [NeoVim](https://github.com/neovim/neovim) - like vim, but newer
+ - [Deoplete](https://github.com/Shougo/deoplete.nvim) - the completion engine that this is a plugin for
+ - [Julia](https://github.com/JuliaLang/julia) -- the julia programming language
     - v0.5 is the only version strongly supported, 
 	- I will endevor to keep it working for 0.6.
     - This is not compatible with 0.4
 	- Because this interacts with the AST and reflection on a tightish level it is dependant on julia's internal representations.
     	- Future versions may display marginally less information, but be more stable, by depending only on the docstrings (/internal help), and on the result of `methods` 
 
+### Suggested
+
+ - [julia-vim](https://github.com/JuliaLang/julia-vim) - syntax highlighting an LaTeX/Unicode replacement
+    - deoplete-julia does not at all interact with julia-vim, and that is kinda a nice thing. They do different task but work together well.
+	- julia-vim runs juat fine in NeoVim
 
 ## Installation
 Use your prefered Vim package manager, eg Vundle.
