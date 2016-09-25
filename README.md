@@ -1,7 +1,7 @@
 # Deoplete-Julia 
 This package supplimentes julia-vim by providing syntax competions, through Deoplete.
-This is for [NeoVim](), rather than orginal Vim.
-The transition from Vim to neovim is fairly seemless these days -- it supports almost all vim plugins etc.
+This is for [NeoVim](https://neovim.io/), rather than orginal Vim.
+The transition from Vim to neovim is fairly seemless these days -- it supports basically all vim plugins etc.
 
 
 
