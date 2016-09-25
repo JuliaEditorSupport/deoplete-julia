@@ -9,7 +9,12 @@ This package is functional, but not, right now easily installed.
 
  - [NeoVim](https://github.com/neovim/neovim)
  - [Deoplete](https://github.com/Shougo/deoplete.nvim)
- 
+ - [Julia](https://github.com/JuliaLang/julia)
+    - v0.5 is the only version strongly supported, 
+	- I will endevor to keep it working for 0.6.
+    - This is not compatible with 0.4
+	- Because this interacts with the AST and reflection on a tightish level it is dependant on julia's internal representations.
+    	- Future versions may display marginally less information, but be more stable, by depending only on the docstrings (/internal help), and on the result of `methods` 
  
 ## Installation
  - WIP: Use faverate Vim package manager, eg Vundle.
