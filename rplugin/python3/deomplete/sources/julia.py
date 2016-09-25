@@ -1,16 +1,23 @@
 # ============================================================================
 # AUTHOR: Lyndon White <lyndon.white at research.uwa.edu.au
-#         Felipe Morales <hel.sheep at gmail.com>
-#         Shougo Matsushita <Shougo.Matsu at gmail.com>
 # License: MIT license
 # ============================================================================
 
 import re
 from collections import namedtuple
 from os.path import exists, getmtime, getsize
+# TODO: replace all use of os.path with pathlib
+import pathlib
 from .base import Base
 import subprocess
 import codecs
+
+
+JULIA_PATH = "/home/ubuntu/build/julia-master/julia"
+JLTAG_PATH = Path(__file__).parent.joinpath("jltag.jl")
+
+
+
 TagsCacheItem = namedtuple('TagsCacheItem', 'mtime candidates')
 
 def readtagfile(f):
@@ -33,10 +40,6 @@ def readtagfile(f):
                    }
         except ValueError as ee:
             raise(ValueError("On line: " + line +"\n",ee))
-
-
-JULIA_PATH = "/home/ubuntu/build/julia-master/julia"
-JLTAG_PATH = "/mnt/julia-vim-completions/jltags/jltag.jl"
 
 def get_refered_tagfiles(vim):
     current_filename = vim.call('expand','%:p')
