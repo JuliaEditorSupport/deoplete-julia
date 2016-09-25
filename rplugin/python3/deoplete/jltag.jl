@@ -221,7 +221,7 @@ function create_module_tagsfile(cache_name, module_name)
 	end
 	open(cache_name,"w") do fp
 		tags = tags_from_module(mod) |> collect
-		file_mtimes = Dict([tag.file=>stat(tag.file).mtime|>Dates.unix2datetime for tag in tags])
+		file_mtimes = Dict(tag.file=>stat(tag.file).mtime|>Dates.unix2datetime for tag in tags)
 		write_header(fp, file_mtimes)
 		for tag in tags
 			write_tag(fp,tag)
