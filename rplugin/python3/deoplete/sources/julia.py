@@ -67,7 +67,7 @@ class Source(Base):
     def on_event(self, context):
         if 'tag' in context['sources']:
             self.vim.command("echom \"deomplete-julia: Warning: deocomple-source 'tag' and  'julia' probably should not mix.\"")
-        self.__make_cache(context)
+        self.__make_cache()
 
     def gather_candidates(self, context):
         if len(self.__cache)==0:
