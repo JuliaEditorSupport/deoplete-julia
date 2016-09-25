@@ -1,3 +1,5 @@
+const cache_location = joinpath(Pkg.Dir.path(),"../jltags_cache/")
+
 kinds = Dict("module"=>"module",
 			 "variable"=>"variable",
 			 "function"=>"function",
@@ -19,8 +21,6 @@ function write_header(fp::IO, file_mtimes=[])
 	println(fp,"!_TAG_FILE_SORTED   0   /0=unsorted, 1=sorted, 2=foldcase/")
 	println(fp,"!_TAG_PROGRAM_AUTHOR    Lyndon White aka Frames aka oxinabox /lyndon.white@reseach.uwa.edu.au")
 	println(fp,"!_TAG_PROGRAM_NAME  jltags //")
-	#println(fp,"!_TAG_PROGRAM_URL   http://ctags.sourceforge.net    /official site/")
-	#println(fp,"!_TAG_PROGRAM_VERSION   5.9~svn20110310 //")
 	for (filename, mtime) in file_mtimes
 		println(fp,mtime_line_prefix,"\t",filename,"\t",string(mtime))
 	end
@@ -40,7 +40,7 @@ end
 Optionally:
    ;"		semicolon + doublequote: Ends the tagaddress in way that looks
 		like the start of a comment to Vi.
-   {tagfield}	See below. 
+   {tagfield}	See below.
 
 """
 function write_tag(fp::IO, tag::Tag)
@@ -130,7 +130,7 @@ function tags(name_sym::Symbol,mm::Module, tt::DataType, record_truename=false)
 					"string" => string(tt)
 					)
 		if record_truename
-			fields["true_name"]=func.name.name |> string
+			fields["true_name"]=tt.name.name |> string
 		end
 
 		if tt.name.names |> length >= nfields(tt) #HACK: Avoid Bug where there are not as many names as fields.
@@ -141,11 +141,11 @@ function tags(name_sym::Symbol,mm::Module, tt::DataType, record_truename=false)
 		end
 		
 		produce(Tag(name,filename, "/^[typealias|type|abstract|immutable]\\s+name\\s*=/", fields))
-	end	
+	end
 end
 
 function tags(name_sym::Symbol, mm::Module,  value::Type)
-	Task() do 
+	Task() do
 		for tag in 	tags(name_sym,mm,value.body)
 			#TODO: Actually undertand and  special case this fully as a type alias? idk check out `typeof(Vector)`
 			tag.fields["kind"] = kinds["type"]
@@ -158,7 +158,7 @@ end
 
 function tags(name_sym::Symbol,mm::Module, submodule::Module)
 	name=string(name_sym)
-	Task() do 
+	Task() do
 
 		filename = module_to_filename(submodule)
 		fields=Dict("kind"  => kinds["module"],
@@ -211,7 +211,6 @@ end
 
 ##################################
 #Create Module cache
-const cache_location = joinpath(Pkg.Dir.path(),"../jltags_cache/")
 
 function create_module_tagsfile(cache_name, module_name)
 	mkpath(cache_location)
@@ -304,7 +303,7 @@ end
 
 function make_standalone_tagfile(filename)
 	println(STDERR,"Standalone Tagging $filename")
-	mod_names = get_modules_names(filenames)
+	mod_names = get_modules_names(filename)
 
 	open(joinpath(dirname(filename), "."*basename(filename)*".tags"),"w") do fp
 		for mod_name in mod_names

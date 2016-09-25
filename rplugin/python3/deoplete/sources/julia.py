@@ -7,21 +7,18 @@ import re
 from collections import namedtuple
 from os.path import exists, getmtime, getsize
 # TODO: replace all use of os.path with pathlib
-import pathlib
+from pathlib import Path
 from .base import Base
 import subprocess
 import codecs
 
 
-JULIA_PATH = "/home/ubuntu/build/julia-master/julia"
-JLTAG_PATH = Path(__file__).parent.joinpath("jltag.jl")
-
-
+JULIA_PATH = "julia"
+JLTAG_PATH = Path(__file__).resolve().parent.parent.joinpath("jltag.jl")
 
 TagsCacheItem = namedtuple('TagsCacheItem', 'mtime candidates')
 
 def readtagfile(f):
-    # Replace deocomplete.util.parse_file_pattern(f, '^[^!][^\t]+'))
     for line in f:
         if not(line.strip()) or line[0]=='!'  : continue
 
@@ -43,13 +40,13 @@ def readtagfile(f):
 
 def get_refered_tagfiles(vim):
     current_filename = vim.call('expand','%:p')
-    #vim.command("echom \"jltag: %s\"" % current_filename)
-    jltag_proc = subprocess.Popen([JULIA_PATH, JLTAG_PATH, "refer", current_filename],
+    jltag_proc = subprocess.Popen([JULIA_PATH, str(JLTAG_PATH), "refer", current_filename],
                                   stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE)
 
     for line in jltag_proc.stderr.readlines():
-        vim.command("echom \"deomplete-julia: Tagger: %s\"" % line.decode('utf-8').strip())
+        output = line.decode('utf-8').strip().replace("'", "''")
+        vim.command("echom 'deomplete-julia: Tagger: %s'" % output)
 
     tagfiles=[line.decode('utf-8').strip() for line in jltag_proc.stdout.readlines()]
     return tagfiles
@@ -65,6 +62,7 @@ class Source(Base):
         self.mark = '[J]'
         self.filetypes = ['julia']
         self.__cache = {}
+        self.vim.command("echom 'deomplete-julia: initialised'")
 
     def on_event(self, context):
         if 'tag' in context['sources']:
