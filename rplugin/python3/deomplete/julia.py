@@ -1,5 +1,4 @@
 # ============================================================================
-# FILE: desctag.py
 # AUTHOR: Lyndon White <lyndon.white at research.uwa.edu.au
 #         Felipe Morales <hel.sheep at gmail.com>
 #         Shougo Matsushita <Shougo.Matsu at gmail.com>
@@ -47,7 +46,7 @@ def get_refered_tagfiles(vim):
                                   stderr=subprocess.PIPE)
 
     for line in jltag_proc.stderr.readlines():
-        vim.command("echom \"jltag Tagger: %s\"" % line.decode('utf-8').strip())
+        vim.command("echom \"deomplete-julia: Tagger: %s\"" % line.decode('utf-8').strip())
 
     tagfiles=[line.decode('utf-8').strip() for line in jltag_proc.stdout.readlines()]
     return tagfiles
@@ -59,14 +58,14 @@ class Source(Base):
     def __init__(self, vim):
         Base.__init__(self, vim)
 
-        self.name = 'jltag'
+        self.name = 'julia'
         self.mark = '[J]'
         self.filetypes = ['julia']
         self.__cache = {}
 
     def on_event(self, context):
         if 'tag' in context['sources']:
-            self.vim.command("echom \"jltag: Warning deocomple-source 'tag' and  'jltag' probably should not mix.\"")
+            self.vim.command("echom \"deomplete-julia: Warning: deocomple-source 'tag' and  'julia' probably should not mix.\"")
         self.__make_cache(context)
 
     def gather_candidates(self, context):
@@ -89,10 +88,10 @@ class Source(Base):
             if filename not in self.__cache or self.__cache[filename].mtime != mtime:
                 with open(filename, 'r', errors='replace') as f:
                     tags = list(readtagfile(f))
-                    self.vim.command("echom \"jltag: %s, with %s tags\"" % (filename,len(tags)))
+                    self.vim.command("echom \"deoplete-julia: %s, with %s tags\"" % (filename,len(tags)))
                     self.__cache[filename] = TagsCacheItem(mtime,tags)
 
-        self.vim.command("echom \"jltag: Cache Made\"")
+        self.vim.command("echom \"deomplete-julia: Cache Made\"")
 
 
     def __get_tagfiles(self):
