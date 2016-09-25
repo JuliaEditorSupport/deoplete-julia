@@ -8,8 +8,6 @@ The transition from Vim to neovim is fairly seemless these days -- it supports b
 Check out the video of it working. (Click the image below)
 [![asciicast](https://asciinema.org/a/688g8iyhj1idrtz8ooptr6iso.png)](https://asciinema.org/a/688g8iyhj1idrtz8ooptr6iso)
 (Yes, I know that code is not actually correct. Recording demos is hard.)
-## WIP
-This package is functional, but not, right now easily installed.
 
 
 ## Requirements:
