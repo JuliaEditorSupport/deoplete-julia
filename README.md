@@ -1,7 +1,7 @@
 # Deoplete-Julia 
-This package supplimentes julia-vim by providing syntax competions, through Deoplete.
+This package supplements julia-vim by providing syntax completions, through Deoplete.
 This is for [NeoVim](https://neovim.io/), rather than orginal Vim.
-The transition from Vim to neovim is fairly seemless these days -- it supports basically all vim plugins etc.
+The transition from Vim to neovim is fairly seamless these days -- it supports basically all vim plugins etc.
 
 
 
@@ -16,16 +16,16 @@ Check out the video of it working. (Click the image below)
  - [Deoplete](https://github.com/Shougo/deoplete.nvim) - the completion engine that this is a plugin for
  - [Julia](https://github.com/JuliaLang/julia) -- the julia programming language
     - v0.5 is the only version strongly supported, 
-	- I will endevor to keep it working for 0.6.
+	- I will endeavor to keep it working for 0.6.
     - This is not compatible with 0.4
-	- Because this interacts with the AST and reflection on a tightish level it is dependant on julia's internal representations.
+	- Because this interacts with the AST and reflection on a tightish level it is dependent on julia's internal representations.
     	- Future versions may display marginally less information, but be more stable, by depending only on the docstrings (/internal help), and on the result of `methods` 
 
 ### Suggested
 
- - [julia-vim](https://github.com/JuliaLang/julia-vim) - syntax highlighting an LaTeX/Unicode replacement
+ - [julia-vim](https://github.com/JuliaLang/julia-vim) - syntax highlighting and LaTeX/Unicode replacement
     - deoplete-julia does not at all interact with julia-vim, and that is kinda a nice thing. They do different task but work together well.
-	- julia-vim runs juat fine in NeoVim
+	- julia-vim runs just fine in NeoVim
 
 ## Installation
 Use your prefered Vim package manager, eg Vundle.
