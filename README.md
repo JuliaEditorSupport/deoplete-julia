@@ -16,10 +16,10 @@ Check out the video of it working. (Click the image below)
  - [Deoplete](https://github.com/Shougo/deoplete.nvim) - the completion engine that this is a plugin for
  - [Julia](https://github.com/JuliaLang/julia) -- the julia programming language
     - v0.5 is the only version strongly supported, 
-	- I will endeavor to keep it working for 0.6.
+	- support for 0.6+ will not be coming. (For 0.6 I plan to move to something based on (LanguageServer.jl)[https://github.com/JuliaEditorSupport/LanguageServer.jl] -- stay tuned)
     - This is not compatible with 0.4
 	- Because this interacts with the AST and reflection on a tightish level it is dependent on julia's internal representations.
-    	- Future versions may display marginally less information, but be more stable, by depending only on the docstrings (/internal help), and on the result of `methods` 
+    	- It may have been better to display marginally less information, but be more stable, by depending only on the docstrings (/internal help), and on the result of `methods` 
 
 ### Suggested
 
