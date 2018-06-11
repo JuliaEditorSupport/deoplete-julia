@@ -1,3 +1,11 @@
+**Deprecation Notice:** 
+This package is not being maintained.
+I recommend moving to using something based on the Language Server Protocol,
+and using (LanguageServer.jl)[https://github.com/JuliaEditorSupport/LanguageServer.jl].
+I hear https://github.com/autozimu/LanguageClient-neovim works with deomplete, or with nvim-completion-manager.
+https://github.com/JuliaEditorSupport/LanguageServer.jl/wiki/Vim-and-Neovim
+
+
 # Deoplete-Julia 
 This package supplements julia-vim by providing syntax completions, through Deoplete.
 This is for [NeoVim](https://neovim.io/), rather than orginal Vim.
@@ -16,7 +24,7 @@ Check out the video of it working. (Click the image below)
  - [Deoplete](https://github.com/Shougo/deoplete.nvim) - the completion engine that this is a plugin for
  - [Julia](https://github.com/JuliaLang/julia) -- the julia programming language
     - v0.5 is the only version strongly supported, 
-	- support for 0.6+ will not be coming. (For 0.6 I plan to move to something based on (LanguageServer.jl)[https://github.com/JuliaEditorSupport/LanguageServer.jl] -- stay tuned)
+	- support for 0.6+ will not be coming
     - This is not compatible with 0.4
 	- Because this interacts with the AST and reflection on a tightish level it is dependent on julia's internal representations.
     	- It may have been better to display marginally less information, but be more stable, by depending only on the docstrings (/internal help), and on the result of `methods` 
